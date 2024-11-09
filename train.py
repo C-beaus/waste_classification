@@ -199,6 +199,8 @@ def train():
         lr_scheduler.step()
         avg_loss = epoch_loss / len(data_loader)
         logger.info(f"Epoch [{epoch+1}/{num_epochs}] Average Loss: {avg_loss:.4f}")
+        writer_train = SummaryWriter('runs/train')
+        writer_train.add_scalar('average_training_loss', epoch_loss, epoch)
 
         # Get accuracy for this epoch
         model.eval()
