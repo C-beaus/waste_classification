@@ -205,23 +205,10 @@ def train():
         Path(os.path.join("runs/", 'validation')).mkdir(parents=True, exist_ok=True)
         writer = SummaryWriter('runs/validation')
         compute_accuracy(model, val_data_loader, device, epoch, writer)
-        # with torch.no_grad():
-        #             model.eval()
-        #             for images, targets in val_data_loader:
-        #                 images = list(image.to(device) for image in images)
-        #                 targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
-
-        #                 try: 
-        #                     output = model(images)
-
-                            
-
-
+    
     # Save the trained model
         torch.save(model.state_dict(), 'fasterrcnn_model.pth')
     logger.info("Training completed and model saved to 'fasterrcnn_model.pth'.")
-
-# def get_final_trained_model_accuracy(model, data_loader):
 
 def compute_iou(box1, box2):
     # Compute IoU between two sets of boxes
@@ -257,20 +244,6 @@ def compute_accuracy(model, data_loader, device, epoch, writer, iou_threshold=0.
                         correct_detections += 1  # Correct label and IoU match
                     total_detections += 1
 
-                # max_iou, _ = torch.max(ious, dim=1)  # Find max IoU for each prediction box
-
-                # # Maybe have an accuracy calculation based on ensuring all indices in torch.max(ious, dim=1) call are unique
-
-                # # Count predictions with IoU > threshold
-                # correct_detections += (max_iou > iou_threshold).sum().item()
-
-                # # If the model makes extra detections or misses detections, add the number of missed detections or extra detections to the
-                # # total detections to ensure accuracy is properly calculated as mismatched numbers of ground truth and predictions will
-                # # otherwise provide extra "correct detections"
-                # if len(gt_boxes) != len(pred_boxes):
-                #     extra_or_missed_detections = abs(len(gt_boxes) - len(pred_boxes))
-                # total_detections += len(gt_boxes) + extra_or_missed_detections
-
     # Calculate accuracy based on accuracy of drawn box and classification made
     accuracy = correct_detections / total_detections if total_detections > 0 else 0
     writer.add_scalar('validation_accuracy',
@@ -286,8 +259,7 @@ def get_model_instance_segmentation(num_classes):
     # Load a pre-trained model for classification and return
     # a model ready for fine-tuning
 
-    model = torchvision.models.detection.fasterrcnn_mobilenet_v3_large_fpn(pretrained=True)
-    # model = torchvision.models.detection.fasterrcnn_resnet50_fpn_v2(pretrained=True)
+    model = torchvision.models.detection.fasterrcnn_resnet50_fpn_v2(pretrained=True)
 
     # # Freeze the weights in the resnet model
     # for param in model.parameters():
