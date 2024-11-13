@@ -38,7 +38,9 @@ logger.addHandler(f_handler)
 
 # Constants
 # CLASSES = ['__background__', 'recycling', 'nonrecycling']  # Include background
-CLASSES = ['__background__', 'nonplastic', 'plastic']
+# CLASSES = ['__background__', 'nonplastic', 'plastic']
+CLASSES = ['__background__', 'cardboard', 'glass', 'metal', 'paper', 'plastic']
+
 NUM_CLASSES = len(CLASSES)
 
 # Dataset class
@@ -112,9 +114,9 @@ class WasteDataset(Dataset):
 # Training function
 def train():
     # Hyperparameters
-    num_epochs = 10 # original is 3
+    num_epochs = 100 # original is 3
     batch_size = 4
-    learning_rate = 0.1 # original is 0.005
+    learning_rate = 0.001 # original is 0.005
     momentum = 0.9
     weight_decay = 0.0005
 
@@ -129,14 +131,17 @@ def train():
     ###################### Change the dataset path here ######################
     dataset = WasteDataset(
         # root='c:/Users/chase/OneDrive/Documents/Grad/Robots_for_Recycling/waste_detector/waste_detector_repo/dataset/train',
-        root='c:/Users/chase/OneDrive/Documents/Grad/Robots_for_Recycling/waste_detector/waste_detector_repo/our_dataset/train',
+        # root='c:/Users/chase/OneDrive/Documents/Grad/Robots_for_Recycling/waste_detector/waste_detector_repo/our_dataset/train',
+        root='c:/Users/chase/OneDrive/Documents/Grad/Robots_for_Recycling/waste_detector/waste_detector_repo/plastic_and_metal_dataset/train',
 
         transforms=transform
     )
 
     val_dataset = WasteDataset(
         # root='c:/Users/chase/OneDrive/Documents/Grad/Robots_for_Recycling/waste_detector/waste_detector_repo/dataset/valid',
-        root='c:/Users/chase/OneDrive/Documents/Grad/Robots_for_Recycling/waste_detector/waste_detector_repo/our_dataset/valid',
+        # root='c:/Users/chase/OneDrive/Documents/Grad/Robots_for_Recycling/waste_detector/waste_detector_repo/our_dataset/valid',
+        root='c:/Users/chase/OneDrive/Documents/Grad/Robots_for_Recycling/waste_detector/waste_detector_repo/plastic_and_metal_dataset/valid',
+
 
         transforms=transform
     )

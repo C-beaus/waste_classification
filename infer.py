@@ -37,8 +37,10 @@ logger.addHandler(c_handler)
 logger.addHandler(f_handler)
 
 # Constants
-CLASSES = ['__background__', 'recycling', 'nonrecycling']  # Include background
+# CLASSES = ['__background__', 'recycling', 'nonrecycling']  # Include background
 # CLASSES = ['__background__', 'nonplastic', 'plastic']
+CLASSES = ['__background__', 'cardboard', 'glass', 'metal', 'paper', 'plastic']
+
 NUM_CLASSES = len(CLASSES)
 
 def get_model_instance_segmentation(num_classes):
@@ -133,7 +135,9 @@ if __name__ == '__main__':
     #     infer(sys.argv[1])
 
     # folder_location = 'c:/Users/chase/OneDrive/Documents/Grad/Robots_for_Recycling/waste_detector/waste_detector_repo/dataset/test'
-    folder_location = 'c:/Users/chase/OneDrive/Documents/Grad/Robots_for_Recycling/waste_detector/waste_detector_repo/our_dataset/test'
+    # folder_location = 'c:/Users/chase/OneDrive/Documents/Grad/Robots_for_Recycling/waste_detector/waste_detector_repo/our_dataset/test'
+    folder_location = 'c:/Users/chase/OneDrive/Documents/Grad/Robots_for_Recycling/waste_detector/waste_detector_repo/plastic_and_metal_dataset/test'
+
     img_folder_dir = folder_location + "/images"
     labels_folder_dir = folder_location + "/labels"
 
