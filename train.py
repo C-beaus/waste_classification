@@ -110,15 +110,17 @@ class WasteDataset(Dataset):
             img = self.transforms(img)
 
         return img, target
+    
 
 # Training function
 def train():
     # Hyperparameters
-    num_epochs = 100 # original is 3
-    batch_size = 4
-    learning_rate = 0.001 # original is 0.005
-    momentum = 0.9
-    weight_decay = 0.0005
+    model_params = Params()
+    num_epochs = model_params.num_epochs
+    batch_size = model_params.batch_size
+    learning_rate = model_params.lr
+    momentum = model_params.momentum
+    weight_decay = model_params.weight_decay
 
     logger.info(f"Starting training: batch_size={batch_size}, learning_rate={learning_rate}, num_epochs={num_epochs}")
 
@@ -132,7 +134,10 @@ def train():
     dataset = WasteDataset(
         # root='c:/Users/chase/OneDrive/Documents/Grad/Robots_for_Recycling/waste_detector/waste_detector_repo/dataset/train',
         # root='c:/Users/chase/OneDrive/Documents/Grad/Robots_for_Recycling/waste_detector/waste_detector_repo/our_dataset/train',
-        root='c:/Users/chase/OneDrive/Documents/Grad/Robots_for_Recycling/waste_detector/waste_detector_repo/plastic_and_metal_dataset/train',
+
+        # root='c:/Users/chase/OneDrive/Documents/Grad/Robots_for_Recycling/waste_detector/waste_detector_repo/plastic_and_metal_dataset/train',
+        root='c:/Users/chase/OneDrive/Documents/Grad/Robots_for_Recycling/waste_detector/waste_detector_repo/class_dataset/train',
+
 
         transforms=transform
     )
@@ -140,7 +145,9 @@ def train():
     val_dataset = WasteDataset(
         # root='c:/Users/chase/OneDrive/Documents/Grad/Robots_for_Recycling/waste_detector/waste_detector_repo/dataset/valid',
         # root='c:/Users/chase/OneDrive/Documents/Grad/Robots_for_Recycling/waste_detector/waste_detector_repo/our_dataset/valid',
-        root='c:/Users/chase/OneDrive/Documents/Grad/Robots_for_Recycling/waste_detector/waste_detector_repo/plastic_and_metal_dataset/valid',
+
+        # root='c:/Users/chase/OneDrive/Documents/Grad/Robots_for_Recycling/waste_detector/waste_detector_repo/plastic_and_metal_dataset/valid',
+        root='c:/Users/chase/OneDrive/Documents/Grad/Robots_for_Recycling/waste_detector/waste_detector_repo/class_dataset/valid',
 
 
         transforms=transform
@@ -163,8 +170,10 @@ def train():
     logger.info("DataLoader created.")
 
     # Get the model using our helper function
-    model = get_model_instance_segmentation(NUM_CLASSES)
-    device = torch.device('cpu')
+    model = get_model_instance_segmentation(NUM_CLASSES, model_params, logger)
+ 
+    # Check if GPU is available
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
     logger.info(f"Model loaded and moved to device: {device}")
 
@@ -175,10 +184,28 @@ def train():
 
     # Learning rate scheduler
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer,
-                                                   step_size=3,
-                                                   gamma=0.1)
+                                                   step_size=model_params.lr_step_size,
+                                                   gamma=model_params.lr_gamma)
 
-    for epoch in range(num_epochs):
+    start_epoch = 0
+    resume_training = model_params.resume_training
+    checkpoint_path = os.path.join("checkpoints", model_params.run_title, f"checkpoint.pth")
+
+    if resume_training and os.path.exists(checkpoint_path):
+        print("reloading model from last checkpoint")
+        checkpoint = torch.load(checkpoint_path)
+        model.load_state_dict(checkpoint["model"])
+        start_epoch = checkpoint["epoch"] + 1
+        optimizer.load_state_dict(checkpoint["optimizer"])
+        lr_scheduler.load_state_dict(checkpoint["lr_scheduler"])
+        assert model_params == checkpoint["model_params"]
+
+    # Path(os.path.join("checkpoints_val", params.name)).mkdir(parents=True, exist_ok=True)
+    Path(os.path.join("checkpoints", model_params.run_title)).mkdir(parents=True, exist_ok=True)
+
+    print(f"start epoch: {start_epoch}")
+    print("Training")
+    for epoch in range(start_epoch, num_epochs):
         model.train()
         epoch_loss = 0
         for images, targets in data_loader: 
@@ -198,24 +225,49 @@ def train():
 
             batch_loss = losses.item()
             epoch_loss += batch_loss
-            logger.debug(f"Epoch [{epoch+1}/{num_epochs}], Batch Loss: {batch_loss:.4f}")
+            # logger.debug(f"Epoch [{epoch+1}/{num_epochs}], Batch Loss: {batch_loss:.4f}")
+
+        # Save checkpoint
+        checkpoint = {
+            "model": model.state_dict(),
+            "optimizer": optimizer.state_dict(),
+            "lr_scheduler": lr_scheduler.state_dict(),
+            "epoch": epoch,
+            "model_params": model_params
+        }
+        torch.save(checkpoint, os.path.join("checkpoints", model_params.run_title, f"model_{epoch}.pth"))
+        torch.save(checkpoint, os.path.join("checkpoints", model_params.run_title, f"checkpoint.pth"))
 
         # Update the learning rate
         lr_scheduler.step()
         avg_loss = epoch_loss / len(data_loader)
         logger.info(f"Epoch [{epoch+1}/{num_epochs}] Average Loss: {avg_loss:.4f}")
-        writer_train = SummaryWriter('runs/train')
-        writer_train.add_scalar('average_training_loss', epoch_loss, epoch)
+        Path(os.path.join("runs/", f"{model_params.run_title}/", 'train')).mkdir(parents=True, exist_ok=True)
+        writer_train = SummaryWriter(f'runs/{model_params.run_title}/train')
+        writer_train.add_scalar('average_training_loss', avg_loss, epoch)
 
         # Get accuracy for this epoch
         model.eval()
-        Path(os.path.join("runs/", 'validation')).mkdir(parents=True, exist_ok=True)
-        writer = SummaryWriter('runs/validation')
+        Path(os.path.join("runs/", f"{model_params.run_title}/", 'validation')).mkdir(parents=True, exist_ok=True)
+        writer = SummaryWriter(f'runs/{model_params.run_title}/validation')
         compute_accuracy(model, val_data_loader, device, epoch, writer)
+        
+        
 
     # Save the trained model
-        torch.save(model.state_dict(), 'fasterrcnn_model.pth')
-    logger.info("Training completed and model saved to 'fasterrcnn_model.pth'.")
+    Path(os.path.join("models", model_params.run_title)).mkdir(parents=True, exist_ok=True)
+    torch.save(model.state_dict(), os.path.join('models', model_params.run_title, 'fasterrcnn_model.pth'))
+
+    # Define the file path where parameters will be saved
+    file_path = os.path.join("models", f"{model_params.run_title}", "parameters.txt")
+    parameters = model_params.get_params()
+
+    # Write the parameters to the text file
+    with open(file_path, 'x') as f:
+        for param, value in parameters.items():
+            # Write the parameter name and value in the format "param_name = value"
+            f.write(f"{param} = {value}\n")
+    logger.info("Training completed, params saved, and model saved to 'fasterrcnn_model_" + model_params.run_title + ".pth'.")
 
 # def get_final_trained_model_accuracy(model, data_loader):
 
@@ -263,13 +315,17 @@ def compute_accuracy(model, data_loader, device, epoch, writer, iou_threshold=0.
 def custom_collate_fn(batch):
     return tuple(zip(*batch))
 
-def get_model_instance_segmentation(num_classes):
+def get_model_instance_segmentation(num_classes, model_params, logger):
     # Load a pre-trained model for classification and return
     # a model ready for fine-tuning
 
-    model = torchvision.models.detection.fasterrcnn_mobilenet_v3_large_fpn(pretrained=True)
+    if model_params.name == "mobilenet_backbone":
+        model = torchvision.models.detection.fasterrcnn_mobilenet_v3_large_fpn(pretrained=True)
+    elif model_params.name == "resnet_backbone":
+        model = torchvision.models.detection.fasterrcnn_resnet50_fpn_v2(pretrained=True)
+    else: logger.error(f"model_params.name is: {model_params.name}, which does not match any implemented models")
 
-    logger.info("Loaded pre-trained Faster R-CNN model with MobileNetV3 backbone.")
+    logger.info(f"Loaded pre-trained Faster R-CNN model with {model_params.name}.")
 
     # Get the number of input features for the classifier
     in_features = model.roi_heads.box_predictor.cls_score.in_features
@@ -280,5 +336,52 @@ def get_model_instance_segmentation(num_classes):
 
     return model
 
+class Params:
+    def __init__(self):
+        self.num_epochs = 30
+        self.batch_size = 4
+        self.lr = 0.005
+        self.momentum = 0.9
+        self.weight_decay = 0.0001 # 0.0005
+        self.lr_step_size = 18 #3
+        self.lr_gamma = 0.1
+        self.name = "resnet_backbone" # mobilenet_backbone #resnet_backbone
+        self.resume_training = True
+        self.run_title = "resnet_ss_18_wd_0001_class_dataset"
+
+    def get_params(self):
+        parameters = {
+            'num_epochs': self.num_epochs,
+            'batch_size': self.batch_size,
+            'lr': self.lr,
+            'momentum': self.momentum,
+            'weight_decay': self.weight_decay,
+            'lr_step_size': self.lr_step_size,
+            'lr_gamma': self.lr_gamma,
+            'name': self.name,
+            'resume_training': self.resume_training,
+            'run_title': self.run_title
+        }
+        return parameters
+
+    def __repr__(self):
+        return str(self.__dict__)
+    
+    def __eq__(self, other):
+        return self.__dict__ == other.__dict__
+
 if __name__ == '__main__':
+    """
+    Usage: 
+        Running this code will create and save model to a "model" folder in the current directory will create and save 
+        model checkpoints to a "checkpoint/model.run_title" directory
+            * If training is killed before finishing, you can resume model training by rerunning this script with the same 
+              hyperparameters
+        
+        Change the model hyperparameters and name in the "Params" method above before running
+
+        Will run on GPU if CUDA is available, else CPU
+    
+    """
+    
     train()

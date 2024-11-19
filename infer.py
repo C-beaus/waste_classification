@@ -56,7 +56,7 @@ def get_model_instance_segmentation(num_classes):
 
     return model
 
-def infer(image_path):
+def infer(image_path, model_name, from_checkpoint):
     logger.info(f"Starting inference on image: {image_path}")
 
     # Data transformation
@@ -68,7 +68,8 @@ def infer(image_path):
     device = torch.device('cpu')
     model = get_model_instance_segmentation(NUM_CLASSES)
     try:
-        model.load_state_dict(torch.load('fasterrcnn_model.pth', map_location=device))
+        # model.load_state_dict(torch.load('fasterrcnn_model.pth', map_location=device))
+        model.load_state_dict(torch.load(model_name, map_location=device))
         logger.info("Model loaded successfully.")
     except Exception as e:
         logger.error(f"Failed to load model: {e}")
@@ -129,6 +130,8 @@ def infer(image_path):
 
 
 if __name__ == '__main__':
+    from_checkpoint = False
+    model_name = 'fasterrcnn_model.pth'
     # if len(sys.argv) != 2:
     #     logger.error("Usage: python infer.py <image_path>")
     # else:
@@ -152,6 +155,6 @@ if __name__ == '__main__':
     random_indices = random.sample(range(0, len(test_image_paths)), num_images)
 
     for i in range(num_images):
-        infer(test_image_paths[random_indices[i]])
+        infer(test_image_paths[random_indices[i]], model_name, from_checkpoint)
 
     plt.show()

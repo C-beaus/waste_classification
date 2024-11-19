@@ -68,7 +68,7 @@ def infer_frame(model, frame, device):
         outputs = model([input_tensor])[0]
     return outputs
 
-def draw_bounding_boxes(frame, boxes, labels, scores, threshold=0.5):
+def draw_bounding_boxes(frame, boxes, labels, scores, threshold=0.5): 
     for box, label, score in zip(boxes, labels, scores):
         if score > threshold:
             xmin, ymin, xmax, ymax = map(int, box)
@@ -78,10 +78,12 @@ def draw_bounding_boxes(frame, boxes, labels, scores, threshold=0.5):
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
     return frame
 
-def main():
+def main(model_name, confidence_threshold):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = get_model_instance_segmentation(NUM_CLASSES)
-    model.load_state_dict(torch.load('fasterrcnn_model.pth', map_location=device))
+    # model.load_state_dict(torch.load('fasterrcnn_model.pth', map_location=device))
+    model.load_state_dict(torch.load(model_name, map_location=device))
+
     model.eval().to(device)
 
     # Open a connection to the webcam
@@ -94,7 +96,9 @@ def main():
     #     cap.release()
     # else:
     #     print("No camera found")
-    cap = cv2.VideoCapture(2)
+
+    # cap = cv2.VideoCapture(2)
+    cap = cv2.VideoCapture(0)
     
     if not cap.isOpened():
         logger.error("Failed to open webcam.")
@@ -121,7 +125,7 @@ def main():
         scores = outputs['scores'].cpu().numpy()
 
         # Draw the bounding boxes and labels on the frame
-        frame = draw_bounding_boxes(frame, boxes, labels, scores)
+        frame = draw_bounding_boxes(frame, boxes, labels, scores, threshold=confidence_threshold)
 
         # Display the frame
         cv2.imshow('Real-Time Waste Detector', frame)
@@ -208,24 +212,6 @@ def main():
 
 if __name__ == '__main__':
 
-    # folder_location = 'c:/Users/chase/OneDrive/Documents/Grad/Robots_for_Recycling/waste_detector/waste_detector_repo/plastic_and_metal_dataset/test'
-
-    # img_folder_dir = folder_location + "/images"
-    # labels_folder_dir = folder_location + "/labels"
-
-    # test_image_paths = []
-
-    # # Loop through the folder to load all images
-    # for img_name in os.listdir(img_folder_dir):
-    #     img_path = os.path.join(img_folder_dir, img_name)
-    #     test_image_paths.append(img_path)
-    
-    # num_images = 10
-    # random_indices = random.sample(range(0, len(test_image_paths)), num_images)
-
-    # for i in range(num_images):
-    #     infer(test_image_paths[random_indices[i]])
-
-    # plt.show()
-
-    main()
+    model_name = 'models/mobilenet_ss_18_wd_0001/fasterrcnn_mobilenet_ss_18_wd_0001.pth'
+    confidence_threshold = 0.7
+    main(model_name, confidence_threshold)
